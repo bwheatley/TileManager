@@ -4,7 +4,10 @@ using UnityEngine.Tilemaps;
 using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 using Tile = UnityEngine.Tilemaps.Tile;
+using Debug = UnityEngine.Debug;
 using UnityEditor;
+using System.Diagnostics;
+using System.IO;
 
 namespace AepsLabs.TileManager {
 
@@ -120,9 +123,8 @@ namespace AepsLabs.TileManager {
         ///
         /// </summary>
         /// <param name="theTile"></param>
-        public void GetTile(Vector2 theTile, Tilemap theMap) {
-            Debug.Log(string.Format("Tile.GetTile Not Implemented Yet"));
-            // theMap.GetTile()
+        public static Tile GetTile(Vector3Int theTile, Tilemap theMap) {
+            return (Tile)theMap.GetTile(theTile);
         }
 
 
@@ -170,14 +172,15 @@ namespace AepsLabs.TileManager {
 
             if (mf) {
                 var savePath = string.Format("Assets/_prefabs/tilemaps/{0}.prefab", saveName);
-                if (PrefabUtility.CreatePrefab(savePath,mf)) {
-                    EditorUtility.DisplayDialog("Tilemap Saved",
-                        string.Format("Your tilemap was saved under {0}", savePath), "Continue");
-                }
-                else {
-                    EditorUtility.DisplayDialog("Tilemap NOT Saved",
-                        string.Format("An Error occured while trying to save Tilemap under {0}", savePath), "Continue");
-                }
+                // TODO update this to use SaveAsPrefabAsset
+                // if (PrefabUtility.CreatePrefab(savePath,mf)) {
+                //     EditorUtility.DisplayDialog("Tilemap Saved",
+                //         string.Format("Your tilemap was saved under {0}", savePath), "Continue");
+                // }
+                // else {
+                //     EditorUtility.DisplayDialog("Tilemap NOT Saved",
+                //         string.Format("An Error occured while trying to save Tilemap under {0}", savePath), "Continue");
+                // }
             }
 
         }
@@ -188,8 +191,79 @@ namespace AepsLabs.TileManager {
         /// <param name="tilePos">Location to paint a tile</param>
         /// <param name="tile">What is the tile to be painted</param>
         /// <param name="tileMap">Tilemap to paint on</param>
-        public static void SetTile(Vector3Int tilePos, Tile tile, Tilemap tileMap) {
+        public static void SetTile(Vector3Int tilePos, Tilemap tileMap, Tile tile ) {
             tileMap.SetTile(tilePos, tile);
+        }
+
+        public static void SetTile(Vector3Int tilePos, Tilemap tileMap, Tile[] tile ) {
+            SetTileRandom(tilePos, tileMap, tile);
+        }
+
+
+        public static void SetTileRandom(Vector3Int tilePos, Tilemap tileMap, Tile[] randomTile) {
+            var tile = randomTile[Random.Range(0, randomTile.Length)];
+
+            SetTile(tilePos, tileMap, tile);
+        }
+
+        public static void SetTileBlockLegacy(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile,
+            Tilemap                                      tileMap, bool debug = false) {
+            SetTileBlockLegacy(tilePosStart, tilePosStop, tile, tileMap, new Tile[0], debug);
+        }
+
+        /// <summary>
+        /// Loop through a bunch of tile positions and set all of the tiles to thd defined tile
+        /// Less efficient then the bulk option but around for history sake
+        /// </summary>
+        /// <param name="tilePosStart"></param>
+        /// <param name="tilePosStop"></param>
+        /// <param name="tile"></param>
+        /// <param name="tileMap"></param>
+        public static void SetTileBlockLegacy(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, Tile[] randomTiles, bool debug = false) {
+            var startX = tilePosStart.x;
+            var startY= tilePosStart.y;
+            var endX = tilePosStop.x;
+            var endY = tilePosStop.y;
+
+            Stopwatch _sw = new Stopwatch();
+            if (debug) {
+                Debug.Log(string.Format("TileTools:SetTileBlock Start X{0},Y{1} - End X{2},Y{3}", startX, startY, endX,
+                    endY));
+                // Start timer to check performance
+                _sw.Start();
+            }
+
+            for (int x = startX; x <= endX; x++) {
+                for (int y = startY; y <= endY; y++) {
+                    if (randomTiles.Length > 0) {
+                        tileMap.SetTile(new Vector3Int(x, y, 0), randomTiles[Random.Range(0, randomTiles.Length)]);
+                    }
+                    else {
+                        tileMap.SetTile(new Vector3Int(x, y, 0), tile);
+                    }
+                }
+            }
+
+            if (debug) {
+                // Stop timer
+                _sw.Stop();
+
+                var m_testResult = string.Format("[PerformanceTester] Execution time for loop: {0}ms",
+                    _sw.ElapsedMilliseconds);
+                Debug.Log(m_testResult);
+            }
+        }
+
+
+        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, bool debug = false) {
+            SetTileBlock(tilePosStart, tilePosStop, tile, tileMap, new Tile[0], debug);
+        }
+
+        public static void SaveTilemap(Tilemap tileMap, string path) {
+
+
+
+            // File.WriteAllBytes(path, bytes);
         }
 
         /// <summary>
@@ -199,23 +273,145 @@ namespace AepsLabs.TileManager {
         /// <param name="tilePosStop"></param>
         /// <param name="tile"></param>
         /// <param name="tileMap"></param>
-        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap) {
+        /// <param name="randomTiles">If random tiles is passed in then randomly paint all tiles</param>
+        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, Tile[] randomTiles, bool debug = false) {
             var startX = tilePosStart.x;
-            var startY= tilePosStart.y;
-            var endX = tilePosStop.x;
-            var endY = tilePosStop.y;
+            var startY = tilePosStart.y;
+            var endX   = tilePosStop.x;
+            var endY   = tilePosStop.y;
 
-            Debug.Log(string.Format("TileTools:SetTileBlock Start X{0},Y{1} - End X{2},Y{3}",startX,startY,endX,endY));
 
-            for (int x = startX; x <= endX; x++) {
-                for (int y = startY; y <= endY; y++) {
-                    tileMap.SetTile(new Vector3Int(x,y,0), tile );
-                    Debug.Log(string.Format("Looping through tile block X{0},Y{1} tile set to {2}",x,y, tile.name));
+            Stopwatch _sw = new Stopwatch();
+            if (debug) {
+                Debug.Log(string.Format("TileTools:SetTileBlock Start X{0},Y{1} - End X{2},Y{3}", startX, startY, endX,
+                    endY));
+                // Start timer to check performance
+                _sw.Start();
+            }
+
+            // BoundsInt myB = new BoundsInt(-1, -1, 0, 3, 3, 1);
+            BoundsInt bounds = new BoundsInt(startX, startY, 0, endX, endY, 1);
+            // TileBase[] tileArray = new TileBase[endX * endY];
+            TileBase[] tileArray = new TileBase[bounds.size.x * bounds.size.y * bounds.size.z];
+            if (debug) {
+                Debug.Log(string.Format("tileArray Size {0} Bounds X {1} Y {2} Z {3}", tileArray.Length, bounds.size.x,
+                    bounds.size.y, bounds.size.z));
+            }
+
+            for (int index = 0; index < tileArray.Length; index++)
+            {
+                //If random tiles passed in pick a random tile
+                if (randomTiles.Length > 0) {
+                    tileArray[index] = randomTiles[Random.Range(0, randomTiles.Length)];
+                }
+                else {
+                    tileArray[index] = index % 2 == 0 ? tile : tile;
                 }
             }
 
+            tileMap.SetTilesBlock(bounds, tileArray);
+
+            if (debug) {
+                // Stop timer
+                _sw.Stop();
+                var m_testResult = string.Format("[PerformanceTester] Execution time for loop: {0}ms",
+                    _sw.ElapsedMilliseconds);
+                Debug.Log(m_testResult);
+            }
         }
 
+        /// <summary>
+        /// Clear out a tilemap
+        /// </summary>
+        /// <param name="tileMap"></param>
+        public static void ClearTileMap(Tilemap tileMap) {
+            tileMap.ClearAllTiles();
+        }
+
+        /// <summary>
+        /// Pass in a tilemap to activate or deactivate
+        /// </summary>
+        /// <param name="tileMap"></param>get
+        /// <param name="active"></param>
+        public static void SetLayerActive(Tilemap tileMap, bool active) {
+            //Get the tilemaps GO
+            tileMap.gameObject.SetActive(active);
+        }
+
+
+        public static void DeleteTileBlock() {
+            Debug.LogError("DeleteTileBlock not yet implemented!");
+        }
+
+        public static void DeleteTile(Vector3Int pos, Tilemap tileMap) {
+            tileMap.SetTile(pos, null);
+        }
+
+        public static Tile.ColliderType GetCollider(Vector3Int pos, Tilemap tileMap) {
+            return tileMap.GetColliderType(pos);
+        }
+
+        public static void SetCollider(Vector3Int pos, Tilemap tileMap) {
+
+        }
+
+        public static void SetRotation(Vector3Int pos, Tilemap tileMap, float rotation) {
+            tileMap.SetTileFlags(pos, TileFlags.None );
+            Matrix4x4 matrix  = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0f, 0f, rotation), Vector3.one);
+            tileMap.SetTransformMatrix(pos, matrix);
+        }
+
+        public static void SetColor(Vector3Int pos, Tilemap tileMap, Color color) {
+            tileMap.SetTileFlags(pos, TileFlags.None );
+            tileMap.SetColor(pos, color);
+        }
+
+        /// <summary>
+        /// Check to see if you can paint something at a position.
+        /// Check to make sure there is nothing on the paintLayer Currently
+        /// Check to see if there is anything on the terrainLayer that would obstruct painting
+        /// </summary>
+        /// <param name="pos">Position of the tile</param>
+        /// <param name="paintLayer">The tilemap that you will be painting on.</param>
+        /// <param name="terrainLayer">The tilemap that is the terrain you would be painting over</param>
+        /// <returns></returns>
+        public static bool CheckPaintability(Vector3Int pos, Tilemap paintLayer, Tilemap terrainLayer) {
+            bool result = true;
+
+            //is there anything at the paintlayer to obstruct us from painting?
+            if (TileTools.GetCollider(new Vector3Int(pos.x, pos.y, pos.z), paintLayer) != Tile.ColliderType.None
+                ||TileTools.GetCollider(new Vector3Int(pos.x, pos.y, pos.z), terrainLayer) != Tile.ColliderType.None ) {
+                return false;
+            }
+
+            return result;
+        }
+
+        public static bool ScreenToMapPosition(Vector3 screenPos, out Vector2 mapPosition, Tilemap tileMap = null) {
+            //Found near clip plane in example code https://docs.unity3d.com/ScriptReference/Camera.ScreenToWorldPoint.html
+            //TODO make this support X number of cameras in a scene.
+            mapPosition = WorldToMapPosition(tileMap, screenPos);
+            if ( mapPosition.x < 0 || mapPosition.x > tileMap.cellBounds.xMax || mapPosition.y <0 || mapPosition.y >= tileMap.cellBounds.yMax ) {
+                //&& Input.mousePosition.y >= _myBottomEdge && !EventSystem.current.IsPointerOverGameObject()
+                return false;
+            }
+            return true;
+        }
+
+
+
+        /// <summary>
+        /// Take a World Position and convert it into a Map position
+        /// Do this by comparing the grid to your world position.
+        /// </summary>
+        /// <param name="tileGrid"></param>
+        /// <param name="screenPos">Pass in the screen position for us to convert to world then map</param>
+        /// <returns></returns>
+        public static Vector2 WorldToMapPosition(Tilemap tileMap, Vector3 screenPos) {
+            var worldPos = Camera.main.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, Camera.main.nearClipPlane));
+            var cell = tileMap.layoutGrid.WorldToCell(worldPos);
+            return new Vector2(cell.x, cell.y);
+        }
 
     }
 
