@@ -8,6 +8,7 @@ using Debug = UnityEngine.Debug;
 using UnityEditor;
 using System.Diagnostics;
 using System.IO;
+using OdinSerializer;
 
 namespace AepsLabs.TileManager {
 
@@ -145,22 +146,22 @@ namespace AepsLabs.TileManager {
         }
 
         public void Update() {
-            // TODO convert this to the new input managers
-            // Generate the Map
-            if (Input.GetMouseButtonDown(0)) {
-                Debug.Log(string.Format("Starting TileMap simulation {0} times", numR));
-                doSim(numR);
-            }
-
-            //Clear the Map
-            if (Input.GetMouseButtonDown(1)) {
-                Debug.Log(string.Format("Stopping TileMap simulation {0} times", numR));
-                clearMap(true);
-            }
-
-            if (Input.GetMouseButtonDown(2)) {
-                SaveAssetMap();
-            }
+            // // TODO convert this to the new input managers
+            // // Generate the Map
+            // if (Input.GetMouseButtonDown(0)) {
+            //     Debug.Log(string.Format("Starting TileMap simulation {0} times", numR));
+            //     doSim(numR);
+            // }
+            //
+            // //Clear the Map
+            // if (Input.GetMouseButtonDown(1)) {
+            //     Debug.Log(string.Format("Stopping TileMap simulation {0} times", numR));
+            //     clearMap(true);
+            // }
+            //
+            // if (Input.GetMouseButtonDown(2)) {
+            //     SaveAssetMap();
+            // }
 
 
 
@@ -255,15 +256,68 @@ namespace AepsLabs.TileManager {
         }
 
 
+        /// <summary>
+        /// Take in a tilemap and save out to a binary format, that can be reloaded later. Currently only supports 2D
+        /// TODO add support for z axis
+        /// </summary>
+        /// <param name="tileMap">Tilemap to Save out to binary</param>
+        /// <param name="path">Path to save to</param>
+        /// <param name="rows">Number of rows in the tilemap</param>
+        /// <param name="columns">Number of columns in the tilemaps</param>
+        public static void SaveTilemap(Tilemap tileMap, string path, int columns, int rows) {
+            WorldTile[,] tiles = new WorldTile[columns,rows];
+
+            for (int x = 0; x <= columns; x++) {
+                for (int y = 0; y <= rows; y++) {
+                    var localPlace = new Vector3Int(x, y, 0);
+
+                    if (!tileMap.HasTile(localPlace)) continue;
+
+                    var spriteLoc = tileMap.GetSprite(localPlace);
+                    var spritePath = AssetDatabase.GetAssetPath(spriteLoc);
+                    var resourcePath = spritePath.Split('.');
+
+                    //TODO button up the sprite path since it could break when using
+                    // a path w/o an extension
+                    var tile = new WorldTile
+                    {
+                        LocalPlace    = localPlace,
+                        WorldLocation = tileMap.CellToWorld(localPlace),
+                        TileSprite = resourcePath[0],
+                        // TileBase      = tileMap.GetTile(localPlace),
+                        // TilemapMember = tileMap,
+                        Color = tileMap.GetColor(localPlace),
+                        Name          = localPlace.x + "," + localPlace.y,
+                    };
+
+                    tiles[x, y] = tile;
+                }
+            }
+            // tiles = new Dictionary<Vector3, WorldTile>();
+            // foreach (Vector3Int pos in Tilemap.cellBounds.allPositionsWithin)
+
+            //TODO convert to binary once we get the deserializatio working
+            DataFormat dataFormat = DataFormat.Binary;
+            var        bytes      = SerializationUtility.SerializeValue(tiles, dataFormat);
+            File.WriteAllBytes(path, bytes);
+        }
+
         public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, bool debug = false) {
             SetTileBlock(tilePosStart, tilePosStop, tile, tileMap, new Tile[0], debug);
         }
 
-        public static void SaveTilemap(Tilemap tileMap, string path) {
+        static Vector2Int CalculateStartEnd( int _startNum, int _endNum ) {
+            int _startNumber, _endNumber;
 
-
-
-            // File.WriteAllBytes(path, bytes);
+            if ( _startNum < _endNum ) {
+                _startNumber = _startNum;
+                _endNumber   = _endNum;
+            }
+            else {
+                _startNumber = _endNum;
+                _endNumber   = _startNum;
+            }
+            return new Vector2Int( _startNumber, _endNumber );
         }
 
         /// <summary>
@@ -274,23 +328,32 @@ namespace AepsLabs.TileManager {
         /// <param name="tile"></param>
         /// <param name="tileMap"></param>
         /// <param name="randomTiles">If random tiles is passed in then randomly paint all tiles</param>
-        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, Tile[] randomTiles, bool debug = false) {
-            var startX = tilePosStart.x;
-            var startY = tilePosStart.y;
-            var endX   = tilePosStop.x;
-            var endY   = tilePosStop.y;
+        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, Tile[] randomTiles, bool debug = false, bool performanceDebug = false) {
+            var _myStartX = CalculateStartEnd( tilePosStart.x, tilePosStop.x );
+            var _myStartY = CalculateStartEnd( tilePosStart.y, tilePosStop.y );
+            // var _myStartZ = CalculateStartEnd( tilePosStart.z, tilePosStop.z );
+
+            var startX = _myStartX.x;
+            var startY = _myStartY.x;
+            var endX   = _myStartX.y;
+            var endY   = _myStartY.y;
 
 
             Stopwatch _sw = new Stopwatch();
             if (debug) {
                 Debug.Log(string.Format("TileTools:SetTileBlock Start X{0},Y{1} - End X{2},Y{3}", startX, startY, endX,
                     endY));
-                // Start timer to check performance
-                _sw.Start();
+                if (performanceDebug) {
+                    // Start timer to check performance
+                    _sw.Start();
+                }
             }
 
             // BoundsInt myB = new BoundsInt(-1, -1, 0, 3, 3, 1);
-            BoundsInt bounds = new BoundsInt(startX, startY, 0, endX, endY, 1);
+            // BoundsInt bounds = new BoundsInt(startX, startY, 0, endX, endY, 1);
+            //BoundsInt(origin, size);
+            BoundsInt bounds = new BoundsInt(new Vector3Int(startX,startY,0), new Vector3Int(Mathf.Clamp(endX-startX, 1, int.MaxValue), Mathf.Clamp(endY-startY, 1, int.MaxValue ), 1) );
+
             // TileBase[] tileArray = new TileBase[endX * endY];
             TileBase[] tileArray = new TileBase[bounds.size.x * bounds.size.y * bounds.size.z];
             if (debug) {
@@ -311,7 +374,7 @@ namespace AepsLabs.TileManager {
 
             tileMap.SetTilesBlock(bounds, tileArray);
 
-            if (debug) {
+            if (debug && performanceDebug) {
                 // Stop timer
                 _sw.Stop();
                 var m_testResult = string.Format("[PerformanceTester] Execution time for loop: {0}ms",
@@ -387,10 +450,10 @@ namespace AepsLabs.TileManager {
             return result;
         }
 
-        public static bool ScreenToMapPosition(Vector3 screenPos, out Vector2 mapPosition, Tilemap tileMap = null) {
+        public static bool ScreenToMapPosition(Vector3 screenPos, out Vector2 mapPosition, Tilemap tileMap = null, bool debug = false) {
             //Found near clip plane in example code https://docs.unity3d.com/ScriptReference/Camera.ScreenToWorldPoint.html
             //TODO make this support X number of cameras in a scene.
-            mapPosition = WorldToMapPosition(tileMap, screenPos);
+            mapPosition = WorldToMapPosition(tileMap, screenPos, debug);
             if ( mapPosition.x < 0 || mapPosition.x > tileMap.cellBounds.xMax || mapPosition.y <0 || mapPosition.y >= tileMap.cellBounds.yMax ) {
                 //&& Input.mousePosition.y >= _myBottomEdge && !EventSystem.current.IsPointerOverGameObject()
                 return false;
@@ -407,9 +470,11 @@ namespace AepsLabs.TileManager {
         /// <param name="tileGrid"></param>
         /// <param name="screenPos">Pass in the screen position for us to convert to world then map</param>
         /// <returns></returns>
-        public static Vector2 WorldToMapPosition(Tilemap tileMap, Vector3 screenPos) {
+        public static Vector2 WorldToMapPosition(Tilemap tileMap, Vector3 screenPos, bool debug = false) {
             var worldPos = Camera.main.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, Camera.main.nearClipPlane));
+
             var cell = tileMap.layoutGrid.WorldToCell(worldPos);
+            if (debug) Debug.Log(string.Format("worldPos {0} ScreenPos {1} cellPos {2}", worldPos, screenPos, cell));
             return new Vector2(cell.x, cell.y);
         }
 
