@@ -5,7 +5,9 @@ using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 using Tile = UnityEngine.Tilemaps.Tile;
 using Debug = UnityEngine.Debug;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using System.Diagnostics;
 using System.IO;
 using OdinSerializer;
@@ -255,7 +257,7 @@ namespace AepsLabs.TileManager {
             }
         }
 
-
+#if UNITY_EDITOR
         /// <summary>
         /// Take in a tilemap and save out to a binary format, that can be reloaded later. Currently only supports 2D
         /// TODO add support for z axis
@@ -301,6 +303,8 @@ namespace AepsLabs.TileManager {
             var        bytes      = SerializationUtility.SerializeValue(tiles, dataFormat);
             File.WriteAllBytes(path, bytes);
         }
+#endif
+
 
         public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, bool debug = false) {
             SetTileBlock(tilePosStart, tilePosStop, tile, tileMap, new Tile[0], debug);
@@ -416,6 +420,11 @@ namespace AepsLabs.TileManager {
 
         public static void SetCollider(Vector3Int pos, Tilemap tileMap) {
 
+        }
+
+        public static Matrix4x4 GetRotation(Vector3Int pos, Tilemap tileMap) {
+            // tileMap.SetTileFlags(pos, TileFlags.None );
+            return tileMap.GetTransformMatrix(pos);
         }
 
         public static void SetRotation(Vector3Int pos, Tilemap tileMap, float rotation) {
