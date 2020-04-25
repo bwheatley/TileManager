@@ -5,12 +5,13 @@ using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 using Tile = UnityEngine.Tilemaps.Tile;
 using Debug = UnityEngine.Debug;
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
+// #if UNITY_EDITOR
+// #endif
 using System.Diagnostics;
 using System.IO;
 using OdinSerializer;
+using UnityEngine.U2D;
 
 namespace AepsLabs.TileManager {
 
@@ -257,7 +258,7 @@ namespace AepsLabs.TileManager {
             }
         }
 
-#if UNITY_EDITOR
+
         /// <summary>
         /// Take in a tilemap and save out to a binary format, that can be reloaded later. Currently only supports 2D
         /// TODO add support for z axis
@@ -266,44 +267,104 @@ namespace AepsLabs.TileManager {
         /// <param name="path">Path to save to</param>
         /// <param name="rows">Number of rows in the tilemap</param>
         /// <param name="columns">Number of columns in the tilemaps</param>
-        public static void SaveTilemap(Tilemap tileMap, string path, int columns, int rows) {
+        /// <param name="dataFormat">JSON, Binary, Other</param>
+        /// <param name="spriteAtlas">If you use a spriteAtlas for your tilesheets, this will allow you to reference the child sprite </param>
+        public static void SaveTilemap(Tilemap tileMap, string path, int columns, int rows,
+            DataFormat dataFormat = DataFormat.Binary, SpriteAtlas spriteAtlas = null) {
             WorldTile[,] tiles = new WorldTile[columns,rows];
 
             for (int x = 0; x <= columns; x++) {
                 for (int y = 0; y <= rows; y++) {
                     var localPlace = new Vector3Int(x, y, 0);
 
+                    //If there is no tile here, fuck off
                     if (!tileMap.HasTile(localPlace)) continue;
 
                     var spriteLoc = tileMap.GetSprite(localPlace);
                     var spritePath = AssetDatabase.GetAssetPath(spriteLoc);
                     var resourcePath = spritePath.Split('.');
+                    var _theTile = tileMap.GetTile(localPlace);
+                    // TileData _theTileData = _theTile.GetTileData(localPlace, tileMap, _theTileData);
 
                     //TODO button up the sprite path since it could break when using
+                    //TODO support different scaling for tiles
                     // a path w/o an extension
                     var tile = new WorldTile
                     {
-                        LocalPlace    = localPlace,
-                        WorldLocation = tileMap.CellToWorld(localPlace),
+                        Name = localPlace.x + "," + localPlace.y,
+                        position    = localPlace,
+                        scale = new Vector3(1,1,1),
+                        worldPosition = tileMap.GetCellCenterWorld(localPlace),
                         TileSprite = resourcePath[0],
                         // TileBase      = tileMap.GetTile(localPlace),
                         // TilemapMember = tileMap,
                         Color = tileMap.GetColor(localPlace),
-                        Name          = localPlace.x + "," + localPlace.y,
+                        rotation =  tileMap.GetTransformMatrix(localPlace).rotation.eulerAngles,
+                        SpriteName = spriteLoc.name,
                     };
 
+                    //Set the tile that's going to be serialized
                     tiles[x, y] = tile;
                 }
             }
-            // tiles = new Dictionary<Vector3, WorldTile>();
+            // tiles = new Dictionary<Vector3, WorldTileMap>();
             // foreach (Vector3Int pos in Tilemap.cellBounds.allPositionsWithin)
 
-            //TODO convert to binary once we get the deserializatio working
-            DataFormat dataFormat = DataFormat.Binary;
             var        bytes      = SerializationUtility.SerializeValue(tiles, dataFormat);
             File.WriteAllBytes(path, bytes);
         }
+#if UNITY_EDITOR
 #endif
+
+
+        /// <summary>
+        /// Pass in a tileMap to restore your data to
+        /// Along with a Path to a Saved data object and load your data!
+        /// MUST have sprites in a SpriteAtlas to work
+        /// TODO support raw sprites, but spritesheets must always be in a SpriteAtlas
+        /// </summary>
+        /// <param name="tileMapGO">GameObject with a TileMap Attached</param>
+        /// <param name="myPath">Path to the data object saved with SaveTileMap</param>
+        /// <param name="dataFormat">The format the data is stored</param>
+        /// <param name="spriteAtlas">The spriteAtlas where your sprites are stored</param>
+        public static void LoadTileMap(GameObject tileMapGO, string myPath, DataFormat dataFormat, SpriteAtlas spriteAtlas
+        ) {
+		var bytes = File.ReadAllBytes(myPath);
+		var data = SerializationUtility.DeserializeValue<WorldTile[,]>(bytes, dataFormat);
+
+		Tilemap tileMap = tileMapGO.GetComponent<Tilemap>();
+
+        //Loop over the deserialized data, and paint the tilemap
+		for ( int x = 0; x <= data.GetUpperBound(0); x++ ) {
+			for ( int y = 0; y <= data.GetUpperBound(1); y++ ) {
+
+				//Skip if there is no data for a position
+				if (data[x,y] == null) continue;
+
+				///The tile we're building has no concept of it's position
+				/// We NEED to know it's position for when we call back to SetTile to pain the fucker
+				var myTile = ScriptableObject.CreateInstance<Tile>();
+
+				//Position where the tile will live in the tilemap
+				var pos = new Vector3Int(x,y,0);
+				tileMap.SetTileFlags(pos, TileFlags.None );
+
+                // TODO support non-spriteatlas based sprites
+                // If you don't have a sprite don't error
+				if (data[x, y].SpriteName != null) {
+					myTile.sprite = spriteAtlas.GetSprite(data[x, y].SpriteName);
+				}
+
+				TileTools.SetTile(pos, tileMap , myTile  );
+				TileTools.SetColor(pos, tileMap, data[x,y].Color  );
+            }
+		}
+
+		//Refresh the tilemaps
+		tileMap.RefreshAllTiles();
+		Debug.Log(String.Format("GameData:LoadMap data name {0}", data.Length));
+        }
+
 
 
         public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, bool debug = false) {

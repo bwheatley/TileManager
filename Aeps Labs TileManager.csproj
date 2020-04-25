@@ -233,6 +233,7 @@
         <Compile Include="SaveLoadTiles.cs" />
         <Compile Include="Tile.cs" />
         <Compile Include="WorldTile.cs" />
+        <Compile Include="WorldTileMap.cs" />
     </ItemGroup>
     <ItemGroup>
       <Content Include="OdinSerializer\Config.meta" />
