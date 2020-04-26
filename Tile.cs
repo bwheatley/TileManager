@@ -351,11 +351,18 @@ namespace AepsLabs.TileManager {
 
                 // TODO support non-spriteatlas based sprites
                 // If you don't have a sprite don't error
-				if (data[x, y].SpriteName != null) {
-					myTile.sprite = spriteAtlas.GetSprite(data[x, y].SpriteName);
-				}
+                if (data[x, y].SpriteName != null) {
+                    string spriteName = data[x, y].SpriteName;
+                    spriteName.Replace("(Clone)", "");
 
-				TileTools.SetTile(pos, tileMap , myTile  );
+                    myTile.sprite = spriteAtlas.GetSprite(data[x, y].SpriteName);
+
+                    //Rename the tile properly
+                    myTile.name        = spriteName;
+                    myTile.sprite.name = spriteName;
+                }
+
+                TileTools.SetTile(pos, tileMap , myTile  );
 				TileTools.SetColor(pos, tileMap, data[x,y].Color  );
             }
 		}
