@@ -45,6 +45,7 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="CreateSim.cs" />
         <Compile Include="OdinSerializer\Config\AssemblyBuildInfo.cs" />
         <Compile Include="OdinSerializer\Config\GlobalSerializationConfig.cs" />
         <Compile Include="OdinSerializer\Core\DataReaderWriters\BaseDataReader.cs" />

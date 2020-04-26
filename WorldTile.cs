@@ -15,11 +15,7 @@ namespace AepsLabs.TileManager {
         [OdinSerialize]
         public Tile Tile;
 
-        [OdinSerialize]
-        public string TileSprite { get; set; } //Path to the sprite on the filesystem
-
         public string SpriteName;
-
 
         [OdinSerialize]
         public Color32 Color { get; set; }
