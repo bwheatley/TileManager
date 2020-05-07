@@ -199,11 +199,6 @@ namespace AepsLabs.TileManager {
         }
 
 
-
-        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, bool debug = false) {
-            SetTileBlock(tilePosStart, tilePosStop, tile, tileMap, new Tile[0], debug);
-        }
-
         static Vector2Int CalculateStartEnd( int _startNum, int _endNum ) {
             int _startNumber, _endNumber;
 
@@ -218,6 +213,10 @@ namespace AepsLabs.TileManager {
             return new Vector2Int( _startNumber, _endNumber );
         }
 
+        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile[] tile, Tilemap[] tileMap, bool debug = false) {
+            SetTileBlock(tilePosStart, tilePosStop, tile, tileMap, new Tile[0], debug, false);
+        }
+
         /// <summary>
         /// Loop through a bunch of tile positions and set all of the tiles to thd defined tile
         /// </summary>
@@ -226,7 +225,7 @@ namespace AepsLabs.TileManager {
         /// <param name="tile"></param>
         /// <param name="tileMap"></param>
         /// <param name="randomTiles">If random tiles is passed in then randomly paint all tiles</param>
-        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile tile, Tilemap tileMap, Tile[] randomTiles, bool debug = false, bool performanceDebug = false) {
+        public static void SetTileBlock(Vector3Int tilePosStart, Vector3Int tilePosStop, Tile[] tile, Tilemap[] tileMap, Tile[] randomTiles, bool debug = false, bool performanceDebug = false) {
             var _myStartX = CalculateStartEnd( tilePosStart.x, tilePosStop.x );
             var _myStartY = CalculateStartEnd( tilePosStart.y, tilePosStop.y );
             // var _myStartZ = CalculateStartEnd( tilePosStart.z, tilePosStop.z );
@@ -266,11 +265,11 @@ namespace AepsLabs.TileManager {
                     tileArray[index] = randomTiles[Random.Range(0, randomTiles.Length)];
                 }
                 else {
-                    tileArray[index] = index % 2 == 0 ? tile : tile;
+                    tileArray[index] = index % 2 == 0 ? tile[0] : tile[0];
                 }
             }
 
-            tileMap.SetTilesBlock(bounds, tileArray);
+            tileMap[0].SetTilesBlock(bounds, tileArray);
 
             if (debug && performanceDebug) {
                 // Stop timer
